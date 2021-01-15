@@ -60,7 +60,7 @@ int main_1(int argc, char* argv[])
     size_t result = open_image(path, &image, &image_width, &image_height);
 
     bool use_png = true;
-    bool use_dibv5 = false;
+    bool use_dibv5 = true;
 
     //int32* image_as_int32 = (int32*) image;
 
@@ -136,12 +136,9 @@ int main_1(int argc, char* argv[])
             header->bV5ProfileData = 0;
 
             char* dst = (((char*)header) + header->bV5Size);
-            //memcpy(dst, &bitmap2x2[0], 4 * sizeof(int32));
-            //memcpy(dst, &image_as_int32[0], image_width * image_height * sizeof(int32));
             memcpy(dst, &output_image_as_int32[0], image_width * image_height * sizeof(int32_t));
             GlobalUnlock(hmem);
-
-            //SetClipboardData(CF_DIBV5, hmem);
+            SetClipboardData(CF_DIBV5, hmem);
             CloseClipboard();
 
             GlobalFree(hmem);
