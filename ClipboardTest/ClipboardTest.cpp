@@ -69,26 +69,26 @@ int main()
     if (OpenClipboard(NULL))
     {
         unsigned char* image_as_png = nullptr;
-        size_t result2 = encode_image_as_png(path, &image_as_png);
+        size_t image_png_encoded_size = encode_image_as_png(path, &image_as_png);
 
-        if (result2) {
+        if (image_png_encoded_size) {
             std::ofstream binFile("C:\\Users\\cviot\\Desktop\\WifiCopy.png", std::ios::out | std::ios::binary);
-            binFile.write((const char*) image_as_png, result2);
+            binFile.write((const char*) image_as_png, image_png_encoded_size);
         }
 
-        //UINT png_format = RegisterClipboardFormatA("PNG");
+        UINT png_format = RegisterClipboardFormatA("PNG");
 
-        //if (png_format) {
-        //    //IStream* stream = nullptr;
-        //    //HRESULT hr = CreateStreamOnHGlobal(nullptr, false, &stream);
-        //    HGLOBAL hmem = GlobalAlloc(
-        //        GHND,
-        //        sizeof(BITMAPV5HEADER) + image_width * image_height * 4
-        //    );
-        //    //HGLOBAL png_handle(win::write_png(image));
-        //    //if (png_handle)
-        //    SetClipboardData(png_format, output_image_as_int32);
-        //}
+        if (png_format) {
+            HGLOBAL hmem = GlobalAlloc(
+                GHND,
+                image_png_encoded_size
+            );
+
+            unsigned char* global_mem_png_image = (unsigned char*) GlobalLock(hmem);
+            memcpy(global_mem_png_image, image_as_png, image_png_encoded_size);
+            GlobalUnlock(hmem);
+            SetClipboardData(png_format, hmem);
+        }
         
 
         HDC hdc = CreateCompatibleDC(NULL);
@@ -123,7 +123,7 @@ int main()
         GlobalUnlock(hmem);
 
         EmptyClipboard();
-        SetClipboardData(CF_DIBV5, hmem);
+        //SetClipboardData(CF_DIBV5, hmem);
         CloseClipboard();
 
         GlobalFree(hmem);
