@@ -573,11 +573,17 @@ HGLOBAL write_png
 
     HGLOBAL handle;
     IStream* stream_ptr = stream.get();
-    unsigned char* ptr = (unsigned char*) calloc(5000, sizeof(unsigned char));
+    int nb_bytes_to_read = 10193;
+    unsigned char* ptr = (unsigned char*) calloc(nb_bytes_to_read, sizeof(unsigned char));
     ULONG bytes_read;
     ULARGE_INTEGER new_ptr_after_seek;
     stream_ptr->Seek(intToLargeInt(0), STREAM_SEEK_SET, &new_ptr_after_seek);
-    stream_ptr->Read(ptr, 5000, &bytes_read);
+    stream_ptr->Read(ptr, nb_bytes_to_read, &bytes_read);
+
+    std::ofstream binFile("C:\\Users\\cviot\\Desktop\\WifiCopy2.png", std::ios::out | std::ios::binary);
+    binFile.write((const char*)ptr, nb_bytes_to_read);
+
+
     hr = GetHGlobalFromStream(stream_ptr, &handle);
     if (result) 
     {
