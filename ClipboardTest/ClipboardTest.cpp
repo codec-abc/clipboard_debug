@@ -3,7 +3,12 @@
 #include <windows.h>
 #include <string>
 #include <iomanip>
+#include <vector>
 #include <sstream>
+
+#define _CRT_SECURE_NO_WARNINGS
+#pragma warning(disable:4996)
+
 
 //int width = 2;
 //int height = 2;
@@ -164,6 +169,7 @@ void PrintFormatName(int format)
 {
     if (!format) 
     {
+        std::cout << "invalid format" << std::endl;
         return;
     }
 
@@ -178,6 +184,22 @@ void PrintFormatName(int format)
         if (GetClipboardFormatNameA(format, buffer, ARRAY_SIZE(buffer))) 
         {
             printf(("custom format: %s\n"), buffer);
+            HANDLE data = GetClipboardData(format);
+            if (data) 
+            {
+                std::vector<unsigned char> html_string;
+                unsigned char* html_memory_content = (unsigned char*)data;
+                while (*html_memory_content != 0)
+                {
+                    html_string.push_back(*html_memory_content);
+                    html_memory_content++;
+                }
+                
+                std::string s(html_string.begin(), html_string.end());
+                std::cout << s << std::endl;
+
+                int debug = 1;
+            }
         }
         else 
         {
@@ -258,7 +280,90 @@ int main_2(int argc, char* argv[])
     return 0;
 }
 
+const char* html_test_str = 
+"Version:0.9\r\n"
+"StartHTML:0000000105\r\n"
+"EndHTML : 0000000285\r\n"
+"StartFragment : 0000000141\r\n"
+"EndFragment : 0000000249\r\n"
+"<html>\r\n"
+"<body>\r\n"
+"<!--StartFragment-->\r\n"
+//
+"<!--EndFragment-->\r\n"
+"</body>\r\n"
+"</html>\r\n\0";
+
+int main_3(int argc, char* argv[])
+{
+    if (OpenClipboard(NULL))
+    {
+        EmptyClipboard();
+        UINT html_format = RegisterClipboardFormatA("HTML Format");
+
+        char *buf = new char[40000];
+
+        strcpy(buf,
+            "Version:0.9\r\n"
+            "StartHTML:00000000\r\n"
+            "EndHTML:00000000\r\n"
+            "StartFragment:00000000\r\n"
+            "EndFragment:00000000\r\n"
+            "<html><body>\r\n"
+            "<!--StartFragment -->\r\n");
+
+        // Append the HTML...
+        strcat(buf, 
+            "<img src=\"https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/WIFI_icon.svg/200px-WIFI_icon.svg.png\" />\r\n"
+            "<p>Hello world</p>");
+
+        strcat(buf, "\r\n");
+        // Finish up the HTML format...
+        strcat(buf,
+            "<!--EndFragment-->\r\n"
+            "</body>\r\n"
+            "</html>");
+
+        // Now go back, calculate all the lengths, and write out the
+        // necessary header information. Note, wsprintf() truncates the
+        // string when you overwrite it so you follow up with code to replace
+        // the 0 appended at the end with a '\r'...
+        char *ptr = strstr(buf, "StartHTML");
+        sprintf(ptr + 10, "%08u", strstr(buf, "<html>") - buf);
+        *(ptr + 10 + 8) = '\r';
+
+        ptr = strstr(buf, "EndHTML");
+        sprintf(ptr + 8, "%08u", strlen(buf));
+        *(ptr + 8 + 8) = '\r';
+
+        ptr = strstr(buf, "StartFragment");
+        sprintf(ptr + 14, "%08u", strstr(buf, "<!--StartFrag") - buf);
+        *(ptr + 14 + 8) = '\r';
+
+        ptr = strstr(buf, "EndFragment");
+        sprintf(ptr + 12, "%08u", strstr(buf, "<!--EndFrag") - buf);
+        *(ptr + 12 + 8) = '\r';
+
+         if (html_format) {
+             HGLOBAL hText = GlobalAlloc(
+                 GMEM_MOVEABLE | GMEM_DDESHARE,
+                 strlen(buf) + 4
+             );
+
+             char *ptr = (char *)GlobalLock(hText);
+             strcpy(ptr, buf);
+             GlobalUnlock(hText);
+             SetClipboardData(html_format, hText);
+
+             CloseClipboard();
+             GlobalFree(hText);
+        }
+    }
+
+    return 0;
+}
+
 int main(int argc, char* argv[])
 {
-    main_2(argc, argv);
+    main_3(argc, argv);
 }
