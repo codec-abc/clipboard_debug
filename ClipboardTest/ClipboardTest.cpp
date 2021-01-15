@@ -479,7 +479,9 @@ bool write_png_on_stream(
 
     // PNG encoder (and decoder) only supports GUID_WICPixelFormat32bppBGRA for 32bpp.
     // See: https://docs.microsoft.com/en-us/windows/win32/wic/-wic-codec-native-pixel-formats#png-native-codec
+
     WICPixelFormatGUID pixelFormat = GUID_WICPixelFormat32bppBGRA;
+
     hr = frame->SetPixelFormat(&pixelFormat);
     if (FAILED(hr)) 
     {
@@ -495,31 +497,6 @@ bool write_png_on_stream(
 
     std::vector<uint32_t> buf;
     uint8_t* ptr = image_data;
-
-    // Convert to GUID_WICPixelFormat32bppBGRA if needed
-   /* if (spec.red_mask != 0xff0000 ||
-        spec.green_mask != 0xff00 ||
-        spec.blue_mask != 0xff ||
-        spec.alpha_mask != 0xff000000) {
-        buf.resize(spec.width * spec.height);
-        uint32_t* dst = (uint32_t*)&buf[0];
-        uint32_t* src = (uint32_t*)image_data;
-        for (int y = 0; y < spec.height; ++y) {
-            auto src_line_start = src;
-            for (int x = 0; x < spec.width; ++x) {
-                uint32_t c = *src;
-                *dst = ((((c & spec.red_mask) >> spec.red_shift) << 16) |
-                    (((c & spec.green_mask) >> spec.green_shift) << 8) |
-                    (((c & spec.blue_mask) >> spec.blue_shift)) |
-                    (((c & spec.alpha_mask) >> spec.alpha_shift) << 24));
-                ++dst;
-                ++src;
-            }
-            src = (uint32_t*)(((uint8_t*)src_line_start) + spec.bytes_per_row);
-        }
-        ptr = (uint8_t*)&buf[0];
-        bytes_per_row = 4 * spec.width;
-    }*/
 
     hr = frame->WritePixels(
         height,
@@ -568,6 +545,13 @@ struct coinit
     }
 };
 
+LARGE_INTEGER intToLargeInt(int i) 
+{
+    LARGE_INTEGER li;
+    li.QuadPart = i;
+    return li;
+}
+
 HGLOBAL write_png
 (
     uint8_t* image_data,
@@ -588,7 +572,13 @@ HGLOBAL write_png
     bool result = write_png_on_stream(stream.get(), image_data , width, height, bytes_per_row);
 
     HGLOBAL handle;
-    hr = GetHGlobalFromStream(stream.get(), &handle);
+    IStream* stream_ptr = stream.get();
+    unsigned char* ptr = (unsigned char*) calloc(5000, sizeof(unsigned char));
+    ULONG bytes_read;
+    ULARGE_INTEGER new_ptr_after_seek;
+    stream_ptr->Seek(intToLargeInt(0), STREAM_SEEK_SET, &new_ptr_after_seek);
+    stream_ptr->Read(ptr, 5000, &bytes_read);
+    hr = GetHGlobalFromStream(stream_ptr, &handle);
     if (result) 
     {
         return handle;
