@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <sstream>
 
+
 //int width = 2;
 //int height = 2;
 //int32_t bitmap2x2[4] = { 0xffff0000, 0xff00ff00, 0xff0000ff, 0x00000000 };
@@ -17,10 +18,15 @@ extern "C"
         size_t* width,
         size_t* height
     );
+
+    size_t encode_image_as_png(
+        const char* path,
+        unsigned char** image_data_as_png
+    );
 }
 
 
-void rgba8_to_argb8(unsigned char* input_image, size_t nb_pixel, unsigned char* output_image)
+void rgba8_to_bgra8(unsigned char* input_image, size_t nb_pixel, unsigned char* output_image)
 {
     for (size_t i = 0; i < nb_pixel * 4; i += 4)
     {
@@ -46,11 +52,11 @@ void rgba8_to_argb8(unsigned char* input_image, size_t nb_pixel, unsigned char* 
 
 int main()
 {
-
+    const char* path = "C:\\Users\\cviot\\Desktop\\Wifi.png";
     unsigned char* image = nullptr;
     size_t image_width;
     size_t image_height;
-    size_t result = open_image("C:\\Users\\cviot\\Desktop\\Wifi.png", &image, &image_width, &image_height);
+    size_t result = open_image(path, &image, &image_width, &image_height);
 
     //int32_t* image_as_int32 = (int32_t*) image;
 
@@ -58,10 +64,33 @@ int main()
 
     int32_t* output_image_as_int32 = (int32_t*)output_image;
 
-    rgba8_to_argb8(image, image_width * image_height, output_image);
+    rgba8_to_bgra8(image, image_width * image_height, output_image);
 
     if (OpenClipboard(NULL))
     {
+        unsigned char* image_as_png = nullptr;
+        size_t result2 = encode_image_as_png(path, &image_as_png);
+
+        if (result2) {
+            std::ofstream binFile("C:\\Users\\cviot\\Desktop\\WifiCopy.png", std::ios::out | std::ios::binary);
+            binFile.write((const char*) image_as_png, result2);
+        }
+
+        //UINT png_format = RegisterClipboardFormatA("PNG");
+
+        //if (png_format) {
+        //    //IStream* stream = nullptr;
+        //    //HRESULT hr = CreateStreamOnHGlobal(nullptr, false, &stream);
+        //    HGLOBAL hmem = GlobalAlloc(
+        //        GHND,
+        //        sizeof(BITMAPV5HEADER) + image_width * image_height * 4
+        //    );
+        //    //HGLOBAL png_handle(win::write_png(image));
+        //    //if (png_handle)
+        //    SetClipboardData(png_format, output_image_as_int32);
+        //}
+        
+
         HDC hdc = CreateCompatibleDC(NULL);
 
         HGLOBAL hmem = GlobalAlloc(
