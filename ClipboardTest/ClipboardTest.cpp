@@ -35,11 +35,11 @@ void rgba8_to_bgra8(unsigned char* input_image, size_t nb_pixel, unsigned char* 
         unsigned char b = input_image[i + 2];
         unsigned char a = input_image[i + 3];
 
-        output_image[i + 0] = b;
-        output_image[i + 1] = g;
-        output_image[i + 2] = r;
+        output_image[i + 0] = (unsigned char)((float) b * (a / 255.0f));
+        output_image[i + 1] = (unsigned char)((float) g * (a / 255.0f));
+        output_image[i + 2] = (unsigned char)((float) r * (a / 255.0f));
         output_image[i + 3] = a;
-
+        
         //if (a == 255) {
         //    int r_int = r;
         //    int g_int = g;
@@ -78,7 +78,7 @@ int main()
 
         UINT png_format = RegisterClipboardFormatA("PNG");
 
-        if (png_format) {
+       /* if (png_format) {
             HGLOBAL hmem = GlobalAlloc(
                 GHND,
                 image_png_encoded_size
@@ -88,7 +88,7 @@ int main()
             memcpy(global_mem_png_image, image_as_png, image_png_encoded_size);
             GlobalUnlock(hmem);
             SetClipboardData(png_format, hmem);
-        }
+        }*/
         
 
         HDC hdc = CreateCompatibleDC(NULL);
@@ -123,7 +123,7 @@ int main()
         GlobalUnlock(hmem);
 
         EmptyClipboard();
-        //SetClipboardData(CF_DIBV5, hmem);
+        SetClipboardData(CF_DIBV5, hmem);
         CloseClipboard();
 
         GlobalFree(hmem);
