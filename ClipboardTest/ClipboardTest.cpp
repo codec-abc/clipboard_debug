@@ -59,6 +59,9 @@ int main_1(int argc, char* argv[])
     size_t image_height;
     size_t result = open_image(path, &image, &image_width, &image_height);
 
+    bool use_png = true;
+    bool use_dibv5 = false;
+
     //int32* image_as_int32 = (int32*) image;
 
     unsigned char* output_image = (unsigned char*) calloc(4 * image_width * image_height, sizeof(unsigned char));
@@ -67,74 +70,82 @@ int main_1(int argc, char* argv[])
 
     if (OpenClipboard(NULL))
     {
-        unsigned char* image_as_png = nullptr;
-        size_t image_png_encoded_size = encode_image_as_png(path, &image_as_png);
+        EmptyClipboard();
 
-        if (image_png_encoded_size) 
+        if (use_png) 
         {
-            std::ofstream binFile("C:\\Users\\cviot\\Desktop\\WifiCopy.png", std::ios::out | std::ios::binary);
-            binFile.write((const char*) image_as_png, image_png_encoded_size);
-        }
+            unsigned char* image_as_png = nullptr;
+            size_t image_png_encoded_size = encode_image_as_png(path, &image_as_png);
 
-        UINT png_format = RegisterClipboardFormatA("PNG");
-
-        if (png_format) {
-            HGLOBAL hmem = GlobalAlloc(
-                GHND,
-                image_png_encoded_size
-            );
-
-            unsigned char* global_mem_png_image = (unsigned char*) GlobalLock(hmem);
-            memcpy(global_mem_png_image, image_as_png, image_png_encoded_size);
-            GlobalUnlock(hmem);
-
-            if (SetClipboardData(png_format, hmem)) 
+            if (image_png_encoded_size)
             {
-                std::cout << "set clipboard with png suceeded" << std::endl;
+                std::ofstream binFile("C:\\Users\\cviot\\Desktop\\WifiCopy.png", std::ios::out | std::ios::binary);
+                binFile.write((const char*)image_as_png, image_png_encoded_size);
             }
-            else 
-            {
-                std::cout << "Cannot set png clipboard" << std::endl;
+
+            UINT png_format = RegisterClipboardFormatA("PNG");
+
+            if (png_format) {
+                HGLOBAL hmem = GlobalAlloc(
+                    GHND,
+                    image_png_encoded_size
+                );
+
+                unsigned char* global_mem_png_image = (unsigned char*)GlobalLock(hmem);
+                memcpy(global_mem_png_image, image_as_png, image_png_encoded_size);
+                GlobalUnlock(hmem);
+
+                if (SetClipboardData(png_format, hmem))
+                {
+                    std::cout << "set clipboard with png suceeded" << std::endl;
+                }
+                else
+                {
+                    std::cout << "Cannot set png clipboard" << std::endl;
+                }
+
             }
         }
         
+        if (use_dibv5)
+        {
 
-        HDC hdc = CreateCompatibleDC(NULL);
+            HDC hdc = CreateCompatibleDC(NULL);
 
-        HGLOBAL hmem = GlobalAlloc(
-            GHND,
-            sizeof(BITMAPV5HEADER) + image_width * image_height * 4
-        );
+            HGLOBAL hmem = GlobalAlloc(
+                GHND,
+                sizeof(BITMAPV5HEADER) + image_width * image_height * 4
+            );
 
-        BITMAPV5HEADER* header = (BITMAPV5HEADER*)GlobalLock(hmem);
-        header->bV5Size = sizeof(BITMAPV5HEADER);
-        header->bV5Width = (long) image_width;
-        header->bV5Height = -((long)image_height);
-        header->bV5Planes = 1;
-        header->bV5BitCount = 32;
-        header->bV5Compression = BI_RGB;
-        header->bV5SizeImage = 4 * image_width * image_height;
-        header->bV5AlphaMask = 0xff000000;
-        header->bV5RedMask = 0x00ff0000;
-        header->bV5GreenMask = 0x0000ff00;
-        header->bV5BlueMask = 0x000000ff;
-        header->bV5CSType = LCS_WINDOWS_COLOR_SPACE;
-        header->bV5Intent = LCS_GM_GRAPHICS;
-        header->bV5ClrUsed = 0;
-        header->bV5ClrImportant = 0;
-        header->bV5ProfileData = 0;
+            BITMAPV5HEADER* header = (BITMAPV5HEADER*)GlobalLock(hmem);
+            header->bV5Size = sizeof(BITMAPV5HEADER);
+            header->bV5Width = (long)image_width;
+            header->bV5Height = -((long)image_height);
+            header->bV5Planes = 1;
+            header->bV5BitCount = 32;
+            header->bV5Compression = BI_RGB;
+            header->bV5SizeImage = 4 * image_width * image_height;
+            header->bV5AlphaMask = 0xff000000;
+            header->bV5RedMask = 0x00ff0000;
+            header->bV5GreenMask = 0x0000ff00;
+            header->bV5BlueMask = 0x000000ff;
+            header->bV5CSType = LCS_WINDOWS_COLOR_SPACE;
+            header->bV5Intent = LCS_GM_GRAPHICS;
+            header->bV5ClrUsed = 0;
+            header->bV5ClrImportant = 0;
+            header->bV5ProfileData = 0;
 
-        char* dst = (((char*)header) + header->bV5Size);
-        //memcpy(dst, &bitmap2x2[0], 4 * sizeof(int32));
-        //memcpy(dst, &image_as_int32[0], image_width * image_height * sizeof(int32));
-        memcpy(dst, &output_image_as_int32[0], image_width * image_height * sizeof(int32_t));
-        GlobalUnlock(hmem);
+            char* dst = (((char*)header) + header->bV5Size);
+            //memcpy(dst, &bitmap2x2[0], 4 * sizeof(int32));
+            //memcpy(dst, &image_as_int32[0], image_width * image_height * sizeof(int32));
+            memcpy(dst, &output_image_as_int32[0], image_width * image_height * sizeof(int32_t));
+            GlobalUnlock(hmem);
 
-        EmptyClipboard();
-        //SetClipboardData(CF_DIBV5, hmem);
-        CloseClipboard();
+            //SetClipboardData(CF_DIBV5, hmem);
+            CloseClipboard();
 
-        GlobalFree(hmem);
+            GlobalFree(hmem);
+        }
     }
 
     return 0;
@@ -552,7 +563,7 @@ LARGE_INTEGER intToLargeInt(int i)
     return li;
 }
 
-HGLOBAL write_png
+HGLOBAL write_png_inner
 (
     uint8_t* image_data,
     int width,
@@ -610,7 +621,7 @@ HGLOBAL write_png()
     {
         EmptyClipboard();
         int bytes_per_row = 4 * image_width;
-        return write_png(output_image, image_width, image_height, bytes_per_row);
+        return write_png_inner(output_image, image_width, image_height, bytes_per_row);
     }
 
     return 0;
@@ -625,7 +636,14 @@ int main_4(int argc, char* argv[])
         HGLOBAL png_handle = write_png();
         if (png_handle)
         {
-            SetClipboardData(png_format, png_handle);
+            if (SetClipboardData(png_format, png_handle))
+            {
+                std::cout << "set clipboard with png suceeded" << std::endl;
+            }
+            else
+            {
+                std::cout << "Cannot set png clipboard" << std::endl;
+            }
         }
     }
 
@@ -636,5 +654,5 @@ int main_4(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-    main_4(argc, argv);
+    main_1(argc, argv);
 }
