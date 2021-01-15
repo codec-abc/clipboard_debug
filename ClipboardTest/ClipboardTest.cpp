@@ -5,6 +5,8 @@
 #include <iomanip>
 #include <vector>
 #include <sstream>
+#include <shlwapi.h>
+#include <wincodec.h>
 
 #define _CRT_SECURE_NO_WARNINGS
 #pragma warning(disable:4996)
@@ -76,7 +78,7 @@ int main_1(int argc, char* argv[])
 
         UINT png_format = RegisterClipboardFormatA("PNG");
 
-       /* if (png_format) {
+        if (png_format) {
             HGLOBAL hmem = GlobalAlloc(
                 GHND,
                 image_png_encoded_size
@@ -85,8 +87,16 @@ int main_1(int argc, char* argv[])
             unsigned char* global_mem_png_image = (unsigned char*) GlobalLock(hmem);
             memcpy(global_mem_png_image, image_as_png, image_png_encoded_size);
             GlobalUnlock(hmem);
-            SetClipboardData(png_format, hmem);
-        }*/
+
+            if (SetClipboardData(png_format, hmem)) 
+            {
+                std::cout << "set clipboard with png suceeded" << std::endl;
+            }
+            else 
+            {
+                std::cout << "Cannot set png clipboard" << std::endl;
+            }
+        }
         
 
         HDC hdc = CreateCompatibleDC(NULL);
@@ -121,7 +131,7 @@ int main_1(int argc, char* argv[])
         GlobalUnlock(hmem);
 
         EmptyClipboard();
-        SetClipboardData(CF_DIBV5, hmem);
+        //SetClipboardData(CF_DIBV5, hmem);
         CloseClipboard();
 
         GlobalFree(hmem);
@@ -344,7 +354,8 @@ int main_3(int argc, char* argv[])
         sprintf(ptr + 12, "%08u", strstr(buf, "<!--EndFrag") - buf);
         *(ptr + 12 + 8) = '\r';
 
-         if (html_format) {
+         if (html_format) 
+         {
              HGLOBAL hText = GlobalAlloc(
                  GMEM_MOVEABLE | GMEM_DDESHARE,
                  strlen(buf) + 4
@@ -363,7 +374,271 @@ int main_3(int argc, char* argv[])
     return 0;
 }
 
+template<class T>
+class comptr 
+{
+public:
+
+    comptr() : m_ptr(nullptr) 
+    {
+
+    }
+
+    explicit comptr(T* ptr) : m_ptr(ptr) 
+    {
+
+    }
+
+    comptr(const comptr&) = delete;
+
+    comptr& operator=(const comptr&) = delete;
+
+    ~comptr() 
+    { 
+        reset(); 
+    }
+
+    T** operator&() 
+    { 
+        return &m_ptr; 
+    }
+
+    T* operator->() 
+    { 
+        return m_ptr; 
+    }
+
+    bool operator!() const 
+    { 
+        return !m_ptr; 
+    }
+
+    T* get() 
+    { 
+        return m_ptr; 
+    }
+
+    void reset() 
+    {
+        if (m_ptr) 
+        {
+            m_ptr->Release();
+            m_ptr = nullptr;
+        }
+    }
+private:
+    T* m_ptr;
+};
+
+bool write_png_on_stream(
+    IStream* stream,
+    uint8_t* image_data,
+    int width,
+    int height,
+    int bytes_per_row
+)
+{
+    comptr<IWICBitmapEncoder> encoder;
+
+    HRESULT hr = 
+        CoCreateInstance(
+            CLSID_WICPngEncoder,
+            nullptr, 
+            CLSCTX_INPROC_SERVER,
+            IID_PPV_ARGS(&encoder)
+        );
+
+    if (FAILED(hr)) 
+    {
+        return false;
+    }
+
+    hr = encoder->Initialize(stream, WICBitmapEncoderNoCache);
+
+    if (FAILED(hr)) 
+    {
+        return false;
+    }
+
+    comptr<IWICBitmapFrameEncode> frame;
+    comptr<IPropertyBag2> options;
+
+    hr = encoder->CreateNewFrame(&frame, &options);
+
+    if (FAILED(hr)) 
+    {
+        return false;
+    }
+
+    hr = frame->Initialize(options.get());
+
+    if (FAILED(hr))
+    {
+        return false;
+    }
+
+    // PNG encoder (and decoder) only supports GUID_WICPixelFormat32bppBGRA for 32bpp.
+    // See: https://docs.microsoft.com/en-us/windows/win32/wic/-wic-codec-native-pixel-formats#png-native-codec
+    WICPixelFormatGUID pixelFormat = GUID_WICPixelFormat32bppBGRA;
+    hr = frame->SetPixelFormat(&pixelFormat);
+    if (FAILED(hr)) 
+    {
+        return false;
+    }
+
+    hr = frame->SetSize(width, height);
+
+    if (FAILED(hr)) 
+    {
+        return false;
+    }
+
+    std::vector<uint32_t> buf;
+    uint8_t* ptr = image_data;
+
+    // Convert to GUID_WICPixelFormat32bppBGRA if needed
+   /* if (spec.red_mask != 0xff0000 ||
+        spec.green_mask != 0xff00 ||
+        spec.blue_mask != 0xff ||
+        spec.alpha_mask != 0xff000000) {
+        buf.resize(spec.width * spec.height);
+        uint32_t* dst = (uint32_t*)&buf[0];
+        uint32_t* src = (uint32_t*)image_data;
+        for (int y = 0; y < spec.height; ++y) {
+            auto src_line_start = src;
+            for (int x = 0; x < spec.width; ++x) {
+                uint32_t c = *src;
+                *dst = ((((c & spec.red_mask) >> spec.red_shift) << 16) |
+                    (((c & spec.green_mask) >> spec.green_shift) << 8) |
+                    (((c & spec.blue_mask) >> spec.blue_shift)) |
+                    (((c & spec.alpha_mask) >> spec.alpha_shift) << 24));
+                ++dst;
+                ++src;
+            }
+            src = (uint32_t*)(((uint8_t*)src_line_start) + spec.bytes_per_row);
+        }
+        ptr = (uint8_t*)&buf[0];
+        bytes_per_row = 4 * spec.width;
+    }*/
+
+    hr = frame->WritePixels(
+        height,
+        bytes_per_row,
+        bytes_per_row * height,
+        (BYTE*)ptr
+    );
+
+    if (FAILED(hr)) 
+    {
+        return false;
+    }
+
+    hr = frame->Commit();
+
+    if (FAILED(hr)) 
+    {
+        return false;
+    }
+
+    hr = encoder->Commit();
+
+    if (FAILED(hr)) 
+    {
+        return false;
+    }
+
+    return true;
+}
+
+struct coinit 
+{
+    HRESULT hr;
+
+    coinit() 
+    {
+        hr = CoInitialize(nullptr);
+    }
+
+    ~coinit() 
+    {
+        if (hr == S_OK || hr == S_FALSE) 
+        {
+            CoUninitialize();
+        }
+    }
+};
+
+HGLOBAL write_png
+(
+    uint8_t* image_data,
+    int width,
+    int height,
+    int bytes_per_row
+) 
+{
+    coinit com;
+
+    comptr<IStream> stream;
+    HRESULT hr = CreateStreamOnHGlobal(nullptr, false, &stream);
+    if (FAILED(hr)) 
+    {
+        return nullptr;
+    }
+
+    bool result = write_png_on_stream(stream.get(), image_data , width, height, bytes_per_row);
+
+    HGLOBAL handle;
+    hr = GetHGlobalFromStream(stream.get(), &handle);
+    if (result) 
+    {
+        return handle;
+    }
+
+    GlobalFree(handle);
+    return nullptr;
+}
+
+HGLOBAL write_png()
+{
+    const char* path = "C:\\Users\\cviot\\Desktop\\Wifi.png";
+    unsigned char* image = nullptr;
+    size_t image_width;
+    size_t image_height;
+    size_t result = open_image(path, &image, &image_width, &image_height);
+
+    unsigned char* output_image = (unsigned char*)calloc(4 * image_width * image_height, sizeof(unsigned char));
+    int32_t* output_image_as_int32 = (int32_t*)output_image;
+    rgba8_to_bgra8(image, image_width * image_height, output_image);
+
+    if (OpenClipboard(NULL))
+    {
+        EmptyClipboard();
+        int bytes_per_row = 4 * image_width;
+        return write_png(output_image, image_width, image_height, bytes_per_row);
+    }
+
+    return 0;
+}
+
+int main_4(int argc, char* argv[])
+{
+
+    UINT png_format = RegisterClipboardFormatA("PNG");
+    if (png_format) 
+    {
+        HGLOBAL png_handle = write_png();
+        if (png_handle)
+        {
+            SetClipboardData(png_format, png_handle);
+        }
+    }
+
+
+    return 0;
+}
+
+
 int main(int argc, char* argv[])
 {
-    main_3(argc, argv);
+    main_4(argc, argv);
 }
