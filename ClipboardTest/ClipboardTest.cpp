@@ -8,7 +8,7 @@
 
 //int width = 2;
 //int height = 2;
-//int32_t bitmap2x2[4] = { 0xffff0000, 0xff00ff00, 0xff0000ff, 0x00000000 };
+//int32 bitmap2x2[4] = { 0xffff0000, 0xff00ff00, 0xff0000ff, 0x00000000 };
 
 extern "C"
 {
@@ -26,7 +26,7 @@ extern "C"
 }
 
 
-void rgba8_to_bgra8(unsigned char* input_image, size_t nb_pixel, unsigned char* output_image)
+void rgba8o_bgra8(unsigned char* input_image, size_t nb_pixel, unsigned char* output_image)
 {
     for (size_t i = 0; i < nb_pixel * 4; i += 4)
     {
@@ -50,7 +50,7 @@ void rgba8_to_bgra8(unsigned char* input_image, size_t nb_pixel, unsigned char* 
 }
 
 
-int main()
+int main_1(int argc, char* argv[])
 {
     const char* path = "C:\\Users\\cviot\\Desktop\\Wifi.png";
     unsigned char* image = nullptr;
@@ -58,13 +58,13 @@ int main()
     size_t image_height;
     size_t result = open_image(path, &image, &image_width, &image_height);
 
-    //int32_t* image_as_int32 = (int32_t*) image;
+    //int32* image_as_int32 = (int32*) image;
 
     unsigned char* output_image = (unsigned char*) calloc(4 * image_width * image_height, sizeof(unsigned char));
 
     int32_t* output_image_as_int32 = (int32_t*)output_image;
 
-    rgba8_to_bgra8(image, image_width * image_height, output_image);
+    rgba8o_bgra8(image, image_width * image_height, output_image);
 
     if (OpenClipboard(NULL))
     {
@@ -117,8 +117,8 @@ int main()
         header->bV5ProfileData = 0;
 
         char* dst = (((char*)header) + header->bV5Size);
-        //memcpy(dst, &bitmap2x2[0], 4 * sizeof(int32_t));
-        //memcpy(dst, &image_as_int32[0], image_width * image_height * sizeof(int32_t));
+        //memcpy(dst, &bitmap2x2[0], 4 * sizeof(int32));
+        //memcpy(dst, &image_as_int32[0], image_width * image_height * sizeof(int32));
         memcpy(dst, &output_image_as_int32[0], image_width * image_height * sizeof(int32_t));
         GlobalUnlock(hmem);
 
@@ -130,4 +130,133 @@ int main()
     }
 
     return 0;
+}
+
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
+
+const char* cfNames[] = {
+    "CFEXT",
+    "CF_BITMAP",
+    "CF_METAFILEPICT",
+    "CF_SYLK",
+    "CF_DIF",
+    "CFIFF",
+    "CF_OEMTEXT",
+    "CF_DIB",
+    "CF_PALETTE",
+    "CF_PENDATA",
+    "CF_RIFF",
+    "CF_WAVE",
+    "CF_UNICODETEXT",
+    "CF_ENHMETAFILE",
+    "CF_HDROP",
+    "CF_LOCALE",
+    "CF_DIBV5"
+};
+
+int LookupFormat(const char* name)
+{
+    for (int i = 0; i != ARRAY_SIZE(cfNames); ++i)
+    {
+        if (strcmp(cfNames[i], name) == 0)
+            return i + 1;
+    }
+
+    return RegisterClipboardFormatA(name);
+}
+
+void PrintFormatName(int format)
+{
+    if (!format)
+        return;
+
+    if ((format > 0) && (format <= ARRAY_SIZE(cfNames)))
+    {
+        printf(("%s\n"), cfNames[format - 1]);
+    }
+    else
+    {
+        char buffer[100];
+
+        if (GetClipboardFormatNameA(format, buffer, ARRAY_SIZE(buffer)))
+            printf(("%s\n"), buffer);
+        else
+            printf(("#%i\n"), format);
+    }
+}
+
+void WriteFormats()
+{
+    int count = 0;
+    int format = 0;
+    do
+    {
+        format = EnumClipboardFormats(format);
+        if (format)
+        {
+            ++count;
+            PrintFormatName(format);
+        }
+    } while (format != 0);
+
+    if (!count)
+        printf(("Clipboard is empty!\n"));
+}
+
+void SaveFormat(int format, const char* filename)
+{
+    HGLOBAL hData = (HGLOBAL)GetClipboardData(format);
+
+    LPVOID data = GlobalLock(hData);
+
+    HANDLE hFile = CreateFileA(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        DWORD bytesWritten;
+        WriteFile(hFile, data, GlobalSize(hData), &bytesWritten, 0);
+        CloseHandle(hFile);
+    }
+
+    GlobalUnlock(hData);
+}
+
+int main_2(int argc, char* argv[])
+{
+    if (!OpenClipboard(0))
+    {
+        printf("Cannot open clipboard\n");
+        return 1;
+    }
+
+    if (argc == 1)
+    {
+        WriteFormats();
+    }
+    else if (argc == 3)
+    {
+        int format = LookupFormat(argv[1]);
+        if (format == 0)
+        {
+            printf("Unknown format\n");
+            return 1;
+        }
+
+        SaveFormat(format, argv[2]);
+    }
+    else
+    {
+        printf(("lscf\n"));
+        printf(("List available clipboard formats\n\n"));
+        printf(("lscf CF_NAME filename\n"));
+        printf(("Write format CF_NAME to file filename\n\n"));
+    }
+
+    CloseClipboard();
+
+    return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    main_2(argc, argv);
 }
