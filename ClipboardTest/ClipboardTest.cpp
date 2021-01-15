@@ -11,14 +11,16 @@
 
 extern "C"
 {
-    size_t open_image(
+    size_t open_image
+    (
         const char* path, 
         unsigned char** image_data,
         size_t* width,
         size_t* height
     );
 
-    size_t encode_image_as_png(
+    size_t encode_image_as_png
+    (
         const char* path,
         unsigned char** image_data_as_png
     );
@@ -61,7 +63,8 @@ int main_1(int argc, char* argv[])
         unsigned char* image_as_png = nullptr;
         size_t image_png_encoded_size = encode_image_as_png(path, &image_as_png);
 
-        if (image_png_encoded_size) {
+        if (image_png_encoded_size) 
+        {
             std::ofstream binFile("C:\\Users\\cviot\\Desktop\\WifiCopy.png", std::ios::out | std::ios::binary);
             binFile.write((const char*) image_as_png, image_png_encoded_size);
         }
@@ -148,8 +151,10 @@ int LookupFormat(const char* name)
 {
     for (int i = 0; i != ARRAY_SIZE(cfNames); ++i)
     {
-        if (strcmp(cfNames[i], name) == 0)
+        if (strcmp(cfNames[i], name) == 0) 
+        {
             return i + 1;
+        }
     }
 
     return RegisterClipboardFormatA(name);
@@ -157,21 +162,27 @@ int LookupFormat(const char* name)
 
 void PrintFormatName(int format)
 {
-    if (!format)
-        return;
-
-    if ((format > 0) && (format <= ARRAY_SIZE(cfNames)))
+    if (!format) 
     {
-        printf(("%s\n"), cfNames[format - 1]);
+        return;
     }
-    else
+
+    if ((format > 0) && (format <= ARRAY_SIZE(cfNames))) 
+    {
+        printf(("normal formats: %s\n"), cfNames[format - 1]);
+    }
+    else 
     {
         char buffer[100];
 
-        if (GetClipboardFormatNameA(format, buffer, ARRAY_SIZE(buffer)))
-            printf(("%s\n"), buffer);
-        else
-            printf(("#%i\n"), format);
+        if (GetClipboardFormatNameA(format, buffer, ARRAY_SIZE(buffer))) 
+        {
+            printf(("custom format: %s\n"), buffer);
+        }
+        else 
+        {
+            printf(("custom format: #%i\n"), format);
+        }
     }
 }
 
@@ -190,16 +201,17 @@ void WriteFormats()
     } while (format != 0);
 
     if (!count)
+    {
         printf(("Clipboard is empty!\n"));
+    }
 }
 
 void SaveFormat(int format, const char* filename)
 {
     HGLOBAL hData = (HGLOBAL)GetClipboardData(format);
-
     LPVOID data = GlobalLock(hData);
-
     HANDLE hFile = CreateFileA(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+
     if (hFile != INVALID_HANDLE_VALUE)
     {
         DWORD bytesWritten;
