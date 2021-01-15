@@ -5,7 +5,6 @@
 #include <iomanip>
 #include <sstream>
 
-
 //int width = 2;
 //int height = 2;
 //int32 bitmap2x2[4] = { 0xffff0000, 0xff00ff00, 0xff0000ff, 0x00000000 };
@@ -26,7 +25,7 @@ extern "C"
 }
 
 
-void rgba8o_bgra8(unsigned char* input_image, size_t nb_pixel, unsigned char* output_image)
+void rgba8_to_bgra8(unsigned char* input_image, size_t nb_pixel, unsigned char* output_image)
 {
     for (size_t i = 0; i < nb_pixel * 4; i += 4)
     {
@@ -39,13 +38,6 @@ void rgba8o_bgra8(unsigned char* input_image, size_t nb_pixel, unsigned char* ou
         output_image[i + 1] = (unsigned char)((float) g * (a / 255.0f));
         output_image[i + 2] = (unsigned char)((float) r * (a / 255.0f));
         output_image[i + 3] = a;
-        
-        //if (a == 255) {
-        //    int r_int = r;
-        //    int g_int = g;
-        //    int b_int = b;
-        //    std::cout << "r " << r_int << " g " << g_int << " b " << b_int << std::endl;
-        //}
     }
 }
 
@@ -61,10 +53,8 @@ int main_1(int argc, char* argv[])
     //int32* image_as_int32 = (int32*) image;
 
     unsigned char* output_image = (unsigned char*) calloc(4 * image_width * image_height, sizeof(unsigned char));
-
     int32_t* output_image_as_int32 = (int32_t*)output_image;
-
-    rgba8o_bgra8(image, image_width * image_height, output_image);
+    rgba8_to_bgra8(image, image_width * image_height, output_image);
 
     if (OpenClipboard(NULL))
     {
